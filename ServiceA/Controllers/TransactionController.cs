@@ -1,6 +1,8 @@
 using MassTransit;
 using Contracts;
 using Microsoft.AspNetCore.Mvc;
+using ServiceA.Services;
+using ServiceA.Models;
 
 namespace ServiceA.Controllers;
 
@@ -10,12 +12,15 @@ namespace ServiceA.Controllers;
 public class TransactionController : ControllerBase
 {
     private readonly ISendEndpointProvider _sendEndpointPrivider;
+    private readonly TransactionStateStore _stateStore;
     
     public TransactionController(
-        ISendEndpointProvider sendEndpointProvider
+        ISendEndpointProvider sendEndpointProvider,
+        TransactionStateStore stateStore
     )
     {
         _sendEndpointPrivider = sendEndpointProvider;
+        _stateStore = stateStore;
     }
 
     [HttpPost("start")]
@@ -30,6 +35,12 @@ public class TransactionController : ControllerBase
         var bEndpoint = await _sendEndpointPrivider.GetSendEndpoint(
             new Uri("queue:start-b-queue")
         );
+
+        _stateStore.Transaction[correlationId] = 
+            new TransactionState
+            {
+                CorrelationId = correlationId
+            };
 
         await aEndpoint.Send(
             new StartACommand(correlationId)

@@ -6,7 +6,14 @@ namespace ServiceB.Consumers;
 
 public class StartBConsumer : IConsumer<StartBCommand>
 {
-    public Task Consume(
+    private readonly IPublishEndpoint _publishEndpoint;
+
+    public StartBConsumer(IPublishEndpoint publishEndpoint)
+    {
+        _publishEndpoint = publishEndpoint;
+    }
+
+    public async Task Consume(
         ConsumeContext<StartBCommand> context
     )
     {
@@ -14,6 +21,11 @@ public class StartBConsumer : IConsumer<StartBCommand>
             $"B received {context.Message.CorrelationID}"
         );
 
-        return Task.CompletedTask; 
+        await _publishEndpoint.Publish(
+            new BComplatedCommand(
+                context.Message.CorrelationID,
+                true
+            )
+        );
     }
 }
