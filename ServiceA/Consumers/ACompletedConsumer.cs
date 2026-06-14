@@ -10,14 +10,17 @@ public class ACompletedConsumer : IConsumer<AComplatedCommand>
 {
     private readonly TransactionStateStore _stateStore;
     private readonly TransactionGrpcClient _grpcClient;
+    private readonly TransactionComplateStore _complateStore;
 
     public ACompletedConsumer(
         TransactionStateStore stateStore,
-        TransactionGrpcClient grpcClient
+        TransactionGrpcClient grpcClient,
+        TransactionComplateStore complateStore
     )
     {
         _stateStore = stateStore;
         _grpcClient = grpcClient;
+        _complateStore = complateStore;
     }
 
     public async Task Consume(
@@ -31,18 +34,56 @@ public class ACompletedConsumer : IConsumer<AComplatedCommand>
             state.AComplated = true;
 
             if (state.AComplated &&
-                state.BComplated &&
-                !state.GrpcCalled)
+                state.BComplated)
             {
-                state.GrpcCalled = true;
+                if (Interlocked.Exchange(
+                        ref state.GrpcCalled,
+                        1) == 1)
+                {
+                    return;
+                }
 
-                var result = await _grpcClient.ValidateTransactionAsync(
-                    state.CorrelationId
-                );
+                try
+                {
+                    var result = await _grpcClient.ValidateTransactionAsync(
+                        state.CorrelationId
+                    );
 
-                Console.WriteLine(
-                    $"gRPC result {result}"
-                );
+                    if(_complateStore.PendingTransaction.TryGetValue(
+                        state.CorrelationId,
+                        out var tcs
+                    ))
+                    {
+                        tcs.TrySetResult(result);
+
+                        _complateStore.PendingTransaction.TryRemove(
+                            state.CorrelationId,
+                            out _
+                        );
+                    }
+                }
+                catch (Exception ex)
+                {
+
+                    Console.WriteLine(
+                        $"gRPC error: {ex.Message}"
+                    );
+
+                    
+                    if(_complateStore.PendingTransaction.TryGetValue(
+                        state.CorrelationId,
+                        out var tcs
+                    ))
+                    {
+                        tcs.SetResult(false);
+
+                        _complateStore.PendingTransaction.TryRemove(
+                            state.CorrelationId,
+                            out _
+                        );
+                    }
+                }
+                
             }
         }
 

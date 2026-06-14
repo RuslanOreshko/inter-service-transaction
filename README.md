@@ -1,55 +1,60 @@
-# Inter Service Transaction
+## Використані технології
 
-Test task demonstrating communication between microservices using:
+- **ASP.NET Core** — REST API та gRPC сервіси.
+- **RabbitMQ** — брокер повідомлень для асинхронної взаємодії між сервісами.
+- **MassTransit** — робота з RabbitMQ через Producer та Consumer.
+- **gRPC** — синхронна взаємодія між сервісами.
+- **Scalar** — тестування REST endpoint та перегляд OpenAPI документації.
 
-* .NET
-* MassTransit
-* RabbitMQ
-* gRPC
 
-## Architecture
+## Потік виконання
 
-Client sends a REST request to Service A.
+1. Клієнт викликає REST endpoint:
 
-Service A starts a transaction and asynchronously communicates with Service A Worker and Service B through RabbitMQ.
-
-After both responses are received, Service A synchronously calls Service C via gRPC.
-
-## Services
-
-### Service A
-
-* REST API
-* Transaction orchestration
-* RabbitMQ producer/consumer
-* gRPC client
-
-### Service B
-
-* RabbitMQ consumer
-* Returns transaction result
-
-### Service C
-
-* gRPC server
-* Returns validation result
-
-## Technologies
-
-* ASP.NET Core
-* MassTransit
-* RabbitMQ
-* gRPC
-* Docker Compose
-
-## Run
-
-```bash
-docker compose up -d
+```http
+POST /api/transaction/start
 ```
 
-Then start:
+2. ServiceA створює нову транзакцію та CorrelationId.
+3. ServiceA відправляє повідомлення `StartACommand` та `StartBCommand` через RabbitMQ.
+4. Сервіси A та B обробляють свої команди та відправляють події завершення.
+5. Після отримання підтвердження від обох сервісів виконується gRPC виклик до ServiceC.
+6. ServiceC повертає результат валідації.
+7. ServiceA повертає фінальний результат через REST API.
 
-* ServiceA
-* ServiceB
-* ServiceC
+## Результат виконання
+
+Після завершення обробки повідомлень RabbitMQ та виклику ServiceC через gRPC, ServiceA повертає результат транзакції через REST API.
+
+Приклад відповіді:
+
+```json
+{
+  "correlationId": "42ebd684-f0f4-4de0-bdb3-6f3af4b5090b",
+  "success": true
+}
+```
+
+## Запуск проєкту
+
+### RabbitMQ
+
+```bash
+docker-compose up -d
+```
+
+### Сервіси
+
+```bash
+dotnet run --project ServiceA
+dotnet run --project ServiceB
+dotnet run --project ServiceC
+```
+
+### Тестування
+
+Відкрити Scalar UI та виконати запит:
+
+```http
+POST /api/transaction/start
+```

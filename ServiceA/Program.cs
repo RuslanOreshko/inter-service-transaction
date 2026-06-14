@@ -12,6 +12,7 @@ builder.Services.AddOpenApi();
 
 builder.Services.AddSingleton<TransactionStateStore>();
 builder.Services.AddScoped<TransactionGrpcClient>();
+builder.Services.AddSingleton<TransactionComplateStore>();
 
 builder.Services.AddMassTransit(x =>
 {
