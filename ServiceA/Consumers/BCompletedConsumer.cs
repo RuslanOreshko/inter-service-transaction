@@ -1,6 +1,8 @@
 using MassTransit;
 using Contracts;
 using ServiceA.Services;
+using ServiceA.GrpcClient;
+
 
 namespace ServiceA.Consumers;
 
@@ -9,15 +11,19 @@ public class BCompletedConsumer : IConsumer<BComplatedCommand>
 {
 
     private readonly TransactionStateStore _stateStore;
+    private readonly TransactionGrpcClient _grpcClient;
+
 
     public BCompletedConsumer(
-        TransactionStateStore stateStore
+        TransactionStateStore stateStore,
+        TransactionGrpcClient grpcClient
     )
     {
         _stateStore = stateStore;
+        _grpcClient = grpcClient;
     }
 
-    public Task Consume(
+    public async Task Consume(
         ConsumeContext<BComplatedCommand> context
     )
     {
@@ -28,17 +34,24 @@ public class BCompletedConsumer : IConsumer<BComplatedCommand>
             state.BComplated = true;
 
             if (state.AComplated &&
-                state.BComplated)
+                state.BComplated &&
+                !state.GrpcCalled)
             {
+
+                state.GrpcCalled = true;
+                
+                var result = await _grpcClient.ValidateTransactionAsync(
+                    state.CorrelationId
+                );
+
                 Console.WriteLine(
-                    $"Transaction completed: {state.CorrelationId}");
+                    $"gRPC result {result}"
+                );
             }
         }
 
         Console.WriteLine(
             $"B complated {context.Message.CorrelaationId}"
         );
-
-        return Task.CompletedTask;
     }
 }

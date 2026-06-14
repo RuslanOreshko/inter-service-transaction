@@ -11,6 +11,9 @@ public class TransactionGrpcService : TransactionService.TransactionServiceBase
         ServerCallContext context
     )
     {
+        Console.WriteLine(
+            $"Validation for {request.CorrelationId}");
+
         return Task.FromResult(
             new ValidateTransactionResponse
             {

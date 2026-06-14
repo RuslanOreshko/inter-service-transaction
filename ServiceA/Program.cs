@@ -1,6 +1,8 @@
+using Contracts.Grpc;
 using MassTransit;
 using Scalar.AspNetCore;
 using ServiceA.Consumers;
+using ServiceA.GrpcClient;
 using ServiceA.Services;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -9,6 +11,7 @@ builder.Services.AddControllers();
 builder.Services.AddOpenApi();
 
 builder.Services.AddSingleton<TransactionStateStore>();
+builder.Services.AddScoped<TransactionGrpcClient>();
 
 builder.Services.AddMassTransit(x =>
 {
@@ -32,6 +35,11 @@ builder.Services.AddMassTransit(x =>
 
         cfg.ConfigureEndpoints(context);
     });
+});
+
+builder.Services.AddGrpcClient<TransactionService.TransactionServiceClient>(o =>
+{
+    o.Address = new Uri("http://localhost:5106");
 });
 
 
