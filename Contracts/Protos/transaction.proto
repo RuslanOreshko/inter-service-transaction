@@ -1,0 +1,22 @@
+syntax = "proto3";
+
+option csharp_namespace = "Contracts.Grpc";
+
+service TransactionService{
+    rpc ValidateTransaction
+    (
+        ValidateTransactionRequest
+    )
+    returns
+    (
+        ValidateTransactionResponse
+    );
+}
+
+message ValidateTransactionRequest{
+    string correlationId = 1;
+}
+
+message ValidateTransactionResponse{
+    bool success = 1;
+}
